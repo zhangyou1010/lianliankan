@@ -2,60 +2,97 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>英语单词连连看</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英语连连看</title>
     <style>
+        :root {
+            --primary: #FF9F43;
+            --secondary: #2EC4B6;
+        }
+
         body {
             margin: 0;
-            padding: 20px;
-            background: url('https://img.freepik.com/free-vector/cute-cloud-background_53876-88619.jpg') no-repeat center/cover;
+            padding: 10px;
+            background: url('https://img.freepik.com/free-vector/cute-animals-background_23-2147667057.jpg') no-repeat center/cover;
             font-family: 'Comic Sans MS', cursive;
+            touch-action: manipulation;
         }
 
-        .game-title {
+        .header {
             text-align: center;
-            color: #ff6b6b;
-            font-size: 2.5em;
-            text-shadow: 2px 2px #fff;
+            padding: 10px;
         }
 
-        #game-board {
+        .title {
+            color: #EA5455;
+            font-size: 1.8rem;
+            text-shadow: 2px 2px white;
+            margin: 0;
+        }
+
+        .level-select {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding: 10px;
+        }
+
+        .level-btn {
+            aspect-ratio: 1;
+            background: white;
+            border: 3px solid var(--primary);
+            border-radius: 15px;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .level-btn.unlocked {
+            background: #C8F7C5;
+        }
+
+        .game-container {
+            display: none;
+            position: relative;
+        }
+
+        .game-board {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            max-width: 600px;
-            margin: 20px auto;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.8);
-            border-radius: 15px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            gap: 6px;
+            padding: 10px;
         }
 
         .card {
-            background: #fff;
-            border: 3px solid #4ecdc4;
+            aspect-ratio: 1;
+            background: white;
+            border: 2px solid var(--secondary);
             border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
             cursor: pointer;
             transition: all 0.3s;
-            perspective: 1000px;
+            user-select: none;
         }
 
-        .card:hover {
-            transform: scale(1.05);
-            background: #f0fff0;
+        .card.selected {
+            background: #FFF9C4;
+            transform: scale(0.95);
         }
 
-        .matched {
-            background: #c8e6c9 !important;
-            opacity: 0.5;
+        .card.matched {
+            opacity: 0.3;
             pointer-events: none;
         }
 
-        .wrong {
+        .card.wrong {
             animation: shake 0.5s;
-            background: #ffcdd2 !important;
+            background: #FFCDD2;
         }
 
         @keyframes shake {
@@ -66,29 +103,49 @@
             100% { transform: translateX(0); }
         }
 
-        #audio-control {
+        .music-btn {
             position: fixed;
-            top: 10px;
-            right: 10px;
-            padding: 10px;
+            bottom: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
             background: white;
             border-radius: 50%;
-            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
     </style>
 </head>
 <body>
-    <h1 class="game-title">英语单词连连看 🎮</h1>
-    <div id="game-board"></div>
-    <div id="audio-control">🎵</div>
+    <div class="header">
+        <h1 class="title">英语连连看 🦁</h1>
+        <div class="level-select" id="levelSelect"></div>
+    </div>
+    <div class="game-container" id="gameContainer">
+        <div class="game-board" id="gameBoard"></div>
+    </div>
+    <div class="music-btn" id="musicBtn">🎵</div>
 
     <script>
-        // 单词列表（来自课本前三个单元）
-        const words = [
-            'apple', 'book', 'cat', 'dog',
-            'egg', 'fish', 'girl', 'house',
-            'apple', 'book', 'cat', 'dog',
-            'egg', 'fish', 'girl', 'house'
+        // 课本前三个单元数据
+        const units = [
+            {
+                title: "Unit 1",
+                words: ["apple", "book", "cat", "dog", "egg", "fish"],
+                unlocked: true
+            },
+            {
+                title: "Unit 2",
+                words: ["green", "red", "blue", "yellow", "black", "white"],
+                unlocked: false
+            },
+            {
+                title: "Unit 3",
+                words: ["run", "jump", "swim", "dance", "sing", "draw"],
+                unlocked: false
+            }
         ];
 
         // 音效配置
@@ -99,42 +156,50 @@
         };
 
         let selectedCards = [];
-        let gameBoard = document.getElementById('game-board');
-        let audioControl = document.getElementById('audio-control');
+        let currentLevel = 0;
 
-        // 初始化游戏
-        function initGame() {
+        // 初始化关卡
+        function initLevels() {
+            const container = document.getElementById('levelSelect');
+            units.forEach((unit, index) => {
+                const btn = document.createElement('div');
+                btn.className = `level-btn ${unit.unlocked ? 'unlocked' : ''}`;
+                btn.textContent = unit.title;
+                btn.onclick = () => unit.unlocked && startGame(index);
+                container.appendChild(btn);
+            });
+        }
+
+        // 开始游戏
+        function startGame(levelIndex) {
+            currentLevel = levelIndex;
+            document.getElementById('levelSelect').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'block';
+            
+            const words = [...units[levelIndex].words, ...units[levelIndex].words];
             shuffleArray(words);
+            createGameBoard(words);
+        }
+
+        // 创建游戏板
+        function createGameBoard(words) {
+            const board = document.getElementById('gameBoard');
+            board.innerHTML = '';
             words.forEach(word => {
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.textContent = word;
-                card.addEventListener('click', handleCardClick);
-                gameBoard.appendChild(card);
-            });
-
-            // 背景音乐控制
-            sounds.bgm.loop = true;
-            audioControl.addEventListener('click', () => {
-                if (sounds.bgm.paused) {
-                    sounds.bgm.play();
-                    audioControl.textContent = '🎵';
-                } else {
-                    sounds.bgm.pause();
-                    audioControl.textContent = '🔇';
-                }
+                card.addEventListener('click', () => handleCardClick(card));
+                board.appendChild(card);
             });
         }
 
         // 处理卡片点击
-        function handleCardClick(e) {
-            const card = e.target;
+        function handleCardClick(card) {
             if (card.classList.contains('matched')) return;
 
-            // 播放单词发音
             speakWord(card.textContent);
-            
-            card.style.background = '#fff9c4';
+            card.classList.add('selected');
             selectedCards.push(card);
 
             if (selectedCards.length === 2) {
@@ -142,7 +207,7 @@
             }
         }
 
-        // 检查是否匹配
+        // 检查匹配
         function checkMatch() {
             const [card1, card2] = selectedCards;
             
@@ -150,28 +215,53 @@
                 sounds.correct.play();
                 card1.classList.add('matched');
                 card2.classList.add('matched');
+                checkGameWin();
             } else {
                 sounds.wrong.play();
                 card1.classList.add('wrong');
                 card2.classList.add('wrong');
                 setTimeout(() => {
-                    card1.classList.remove('wrong');
-                    card2.classList.remove('wrong');
-                }, 500);
+                    card1.classList.remove('wrong', 'selected');
+                    card2.classList.remove('wrong', 'selected');
+                }, 800);
             }
-
-            selectedCards.forEach(card => card.style.background = '');
             selectedCards = [];
         }
 
-        // 文字转语音
-        function speakWord(word) {
-            const utterance = new SpeechSynthesisUtterance(word);
-            utterance.lang = 'en-US';
-            speechSynthesis.speak(utterance);
+        // 检查通关
+        function checkGameWin() {
+            const remaining = document.querySelectorAll('.card:not(.matched)');
+            if (remaining.length === 0) {
+                setTimeout(() => {
+                    alert('🎉 恭喜过关！');
+                    unlockNextLevel();
+                    showLevelSelect();
+                }, 500);
+            }
         }
 
-        // 洗牌函数
+        // 解锁下一关
+        function unlockNextLevel() {
+            if (currentLevel + 1 < units.length) {
+                units[currentLevel + 1].unlocked = true;
+                document.querySelectorAll('.level-btn')[currentLevel + 1].classList.add('unlocked');
+            }
+        }
+
+        // 显示关卡选择
+        function showLevelSelect() {
+            document.getElementById('levelSelect').style.display = 'grid';
+            document.getElementById('gameContainer').style.display = 'none';
+        }
+
+        // 语音朗读
+        function speakWord(word) {
+            const speech = new SpeechSynthesisUtterance(word);
+            speech.lang = 'en-US';
+            window.speechSynthesis.speak(speech);
+        }
+
+        // 洗牌算法
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -179,8 +269,15 @@
             }
         }
 
-        // 启动游戏
-        initGame();
+        // 背景音乐控制
+        document.getElementById('musicBtn').addEventListener('click', () => {
+            sounds.bgm.paused ? sounds.bgm.play() : sounds.bgm.pause();
+            musicBtn.textContent = sounds.bgm.paused ? '🔇' : '🎵';
+        });
+
+        // 初始化游戏
+        initLevels();
+        sounds.bgm.loop = true;
     </script>
 </body>
 </html>
