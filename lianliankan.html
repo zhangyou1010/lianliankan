@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>英语单词连连看</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: url('https://img.freepik.com/free-vector/cute-cloud-background_53876-88619.jpg') no-repeat center/cover;
+            font-family: 'Comic Sans MS', cursive;
+        }
+
+        .game-title {
+            text-align: center;
+            color: #ff6b6b;
+            font-size: 2.5em;
+            text-shadow: 2px 2px #fff;
+        }
+
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+        }
+
+        .card {
+            background: #fff;
+            border: 3px solid #4ecdc4;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.3s;
+            perspective: 1000px;
+        }
+
+        .card:hover {
+            transform: scale(1.05);
+            background: #f0fff0;
+        }
+
+        .matched {
+            background: #c8e6c9 !important;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .wrong {
+            animation: shake 0.5s;
+            background: #ffcdd2 !important;
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(5px); }
+            50% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+            100% { transform: translateX(0); }
+        }
+
+        #audio-control {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="game-title">英语单词连连看 🎮</h1>
+    <div id="game-board"></div>
+    <div id="audio-control">🎵</div>
+
+    <script>
+        // 单词列表（来自课本前三个单元）
+        const words = [
+            'apple', 'book', 'cat', 'dog',
+            'egg', 'fish', 'girl', 'house',
+            'apple', 'book', 'cat', 'dog',
+            'egg', 'fish', 'girl', 'house'
+        ];
+
+        // 音效配置
+        const sounds = {
+            bgm: new Audio('https://www.fesliyanstudios.com/musicfiles/2019-06-06-ukulele-happy-music.mp3'),
+            correct: new Audio('https://www.soundjay.com/button/sounds/button-35.mp3'),
+            wrong: new Audio('https://www.soundjay.com/button/sounds/button-11.mp3')
+        };
+
+        let selectedCards = [];
+        let gameBoard = document.getElementById('game-board');
+        let audioControl = document.getElementById('audio-control');
+
+        // 初始化游戏
+        function initGame() {
+            shuffleArray(words);
+            words.forEach(word => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.textContent = word;
+                card.addEventListener('click', handleCardClick);
+                gameBoard.appendChild(card);
+            });
+
+            // 背景音乐控制
+            sounds.bgm.loop = true;
+            audioControl.addEventListener('click', () => {
+                if (sounds.bgm.paused) {
+                    sounds.bgm.play();
+                    audioControl.textContent = '🎵';
+                } else {
+                    sounds.bgm.pause();
+                    audioControl.textContent = '🔇';
+                }
+            });
+        }
+
+        // 处理卡片点击
+        function handleCardClick(e) {
+            const card = e.target;
+            if (card.classList.contains('matched')) return;
+
+            // 播放单词发音
+            speakWord(card.textContent);
+            
+            card.style.background = '#fff9c4';
+            selectedCards.push(card);
+
+            if (selectedCards.length === 2) {
+                checkMatch();
+            }
+        }
+
+        // 检查是否匹配
+        function checkMatch() {
+            const [card1, card2] = selectedCards;
+            
+            if (card1.textContent === card2.textContent) {
+                sounds.correct.play();
+                card1.classList.add('matched');
+                card2.classList.add('matched');
+            } else {
+                sounds.wrong.play();
+                card1.classList.add('wrong');
+                card2.classList.add('wrong');
+                setTimeout(() => {
+                    card1.classList.remove('wrong');
+                    card2.classList.remove('wrong');
+                }, 500);
+            }
+
+            selectedCards.forEach(card => card.style.background = '');
+            selectedCards = [];
+        }
+
+        // 文字转语音
+        function speakWord(word) {
+            const utterance = new SpeechSynthesisUtterance(word);
+            utterance.lang = 'en-US';
+            speechSynthesis.speak(utterance);
+        }
+
+        // 洗牌函数
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // 启动游戏
+        initGame();
+    </script>
+</body>
+</html>
